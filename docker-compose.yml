@@ -1,0 +1,35 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+    php:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - .:/var/www/html
+        working_dir: /var/www/html
+        depends_on:
+            - database
+        environment:
+            DATABASE_URL: "mysql://app:app@database:3306/app?serverVersion=8&charset=utf8mb4"
+        ports:
+            - "8000:8000"
+
+    database:
+        image: mysql:8.0
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: app
+            MYSQL_USER: app
+            MYSQL_PASSWORD: app
+        ports:
+            - "3306:3306"
+        volumes:
+            - db_data:/var/lib/mysql
+
+    # Опционально: Nginx (если хочешь — см. ниже)
+    # nginx: ...
+
+volumes:
+    db_data:
