@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 class Product
@@ -14,12 +15,15 @@ class Product
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['product:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['product:read'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[groups(['product:read'])]
     private ?string $description = null;
 
     /**
@@ -60,6 +64,17 @@ class Product
         $this->description = $description;
 
         return $this;
+    }
+
+    // Скрываем связь со Stock при сериализации
+    #[Groups(['product:read'])]
+    #[SerializedName('stocks')]
+    public function getStocksForSerialization(): array
+    {
+        return $this->stocks->map(fn(Stock $stock) => [
+            'id' => $stock->getId(),
+            'quantity' => $stock->getQuantity(),
+        ])->toArray();
     }
 
     /**

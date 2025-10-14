@@ -16,7 +16,7 @@ class ProductController extends AbstractController
     public function index(EntityManagerInterface $em): JsonResponse
     {
         $products = $em->getRepository(Product::class)->findAll();
-        return $this->json($products);
+        return $this->json($products, context: ['groups' => 'product:read']);
     }
 
     #[Route('/api/products', methods: ['POST'])]

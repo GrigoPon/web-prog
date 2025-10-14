@@ -11,9 +11,11 @@ class Stock
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['stock:read'])]
     private ?int $id = null;
 
     #[ORM\Column]
+    #[Groups(['stock:read'])]
     private ?int $quantity = null;
 
     #[ORM\ManyToOne(inversedBy: 'stocks')]
