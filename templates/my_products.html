@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мои товары</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+        .form-group { margin: 10px 0; }
+        input, textarea { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { background: #28a745; color: white; padding: 10px 15px; border: none; cursor: pointer; margin: 5px; }
+        button.delete { background: #dc3545; }
+        .product { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+        #result { margin: 15px 0; padding: 10px; background: #f8f9fa; }
+    </style>
+</head>
+<body>
+<h1>Мои товары</h1>
+
+<h2>Добавить товар</h2>
+<div class="form-group">
+    <input type="text" id="productName" placeholder="Название товара">
+</div>
+<div class="form-group">
+    <textarea id="productDescription" placeholder="Описание"></textarea>
+</div>
+<div class="form-group">
+    <input type="number" id="productQuantity" placeholder="Количество" value="0">
+</div>
+<button onclick="addProduct()">Добавить</button>
+
+<div id="result"></div>
+
+<h2>Список товаров</h2>
+<div id="productsList">
+    <!-- Товары будут загружены сюда -->
+</div>
+
+<script>
+    // Получаем токен из localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
+        alert('Вы не авторизованы! Перенаправление на главную...');
+        window.location.href = '/';
+    }
+
+    // Загружаем список товаров при открытии страницы
+    loadProducts();
+
+    async function loadProducts() {
+        const response = await fetch('/api/products', {
+            headers: { 'X-AUTH-TOKEN': token }
+        });
+
+        const productsList = document.getElementById('productsList');
+        if (response.ok) {
+            const products = await response.json();
+            if (products.length === 0) {
+                productsList.innerHTML = '<p>У вас пока нет товаров.</p>';
+                return;
+            }
+
+            productsList.innerHTML = products.map(product => `
+                    <div class="product">
+                        <h3>${product.name}</h3>
+                        <p>${product.description || ''}</p>
+                        <p><strong>Количество:</strong> ${product.quantity?.[0]?.quantity}</p>
+                        <button class="delete" onclick="deleteProduct(${product.id})">Удалить</button>
+                    </div>
+                `).join('');
+        } else {
+            productsList.innerHTML = '<p>Ошибка загрузки товаров.</p>';
+        }
+    }
+
+    async function addProduct() {
+        const name = document.getElementById('productName').value;
+        const description = document.getElementById('productDescription').value;
+        const quantity = parseInt(document.getElementById('productQuantity').value) || 0;
+
+        const response = await fetch('/api/products', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-AUTH-TOKEN': token
+            },
+            body: JSON.stringify({ name, description, quantity })
+        });
+
+        const result = document.getElementById('result');
+        if (response.ok) {
+            result.innerHTML = '✅ Товар добавлен!';
+            document.getElementById('productName').value = '';
+            document.getElementById('productDescription').value = '';
+            document.getElementById('productQuantity').value = '0';
+            loadProducts(); // Обновляем список
+        } else {
+            const error = await response.json();
+            result.innerHTML = `❌ Ошибка: ${error.error || 'Неизвестная ошибка'}`;
+        }
+    }
+
+    async function deleteProduct(productId) {
+        if (!confirm('Удалить товар?')) return;
+
+        const response = await fetch(`/api/products/${productId}`, {
+            method: 'DELETE',
+            headers: { 'X-AUTH-TOKEN': token }
+        });
+
+        if (response.ok) {
+            loadProducts(); // Обновляем список
+        } else {
+            alert('Ошибка удаления');
+        }
+    }
+</script>
+</body>
+</html>

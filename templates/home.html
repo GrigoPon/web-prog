@@ -71,7 +71,8 @@
         if (response.ok) {
             const data = await response.json();
             localStorage.setItem('token', data.token);
-            result.innerHTML = `✅ Вход успешен!`;
+            // Редирект на страницу товаров
+            window.location.href = '/my-products';
         } else {
             const error = await response.json();
             result.innerHTML = `❌ Ошибка: ${error.error || 'Неверные данные'}`;
