@@ -59,11 +59,12 @@
                 return;
             }
 
+
             productsList.innerHTML = products.map(product => `
                     <div class="product">
                         <h3>${product.name}</h3>
                         <p>${product.description || ''}</p>
-                        <p><strong>Количество:</strong> ${product.quantity?.[0]?.quantity}</p>
+                        <p><strong>Количество:</strong> ${product.stocks?.[0]?.quantity ?? 0}</p>
                         <button class="delete" onclick="deleteProduct(${product.id})">Удалить</button>
                     </div>
                 `).join('');

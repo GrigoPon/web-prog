@@ -89,6 +89,8 @@ class Product
         return $this->stocks;
     }
 
+
+
     public function addStock(Stock $stock): static
     {
         if (!$this->stocks->contains($stock)) {

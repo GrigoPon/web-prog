@@ -15,12 +15,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && docker-php-ext-install pdo pdo_mysql zip intl
 
+RUN docker-php-ext-install opcache
 # Установка Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 
 # Рабочая директория
 WORKDIR /var/www/html
 
 # Запуск встроенного PHP-сервера (простой способ для dev)
-EXPOSE 8000
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+EXPOSE 9000
+CMD ["php-fpm"]

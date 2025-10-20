@@ -76,6 +76,7 @@ class ProductController extends AbstractController
     #[Route('/api/products/{id}', methods: ['DELETE'])]
     public function delete(int $id, EntityManagerInterface $em, #[CurrentUser] User $user): JsonResponse {
         $product = $em->getRepository(Product::class)->find($id);
+        $stock = $product->getStocks()->first();
 
         if (!$product) {
             return $this->json(['error' => 'product not found'], 404);
@@ -84,7 +85,7 @@ class ProductController extends AbstractController
         if ($product->getOwner() !== $user) {
             throw new AccessDeniedHttpException('You cannot delete this product');
         }
-
+        $em->remove($stock);
         $em->remove($product);
         $em->flush();
         return $this->json(null, 204);
