@@ -1,7 +1,6 @@
-# Dockerfile
 FROM php:8.3-fpm
 
-# Установка системных зависимостей
+# Установка зависимостей
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -9,18 +8,14 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     zip \
-    unzip \
-    libzip-dev \
-    libicu-dev \
-    g++ \
-    && docker-php-ext-install pdo pdo_mysql zip intl
+    unzip
 
-RUN docker-php-ext-install opcache
 # Установка Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Настройка PHP
+RUN docker-php-ext-install pdo pdo_mysql mbstring
 
-# Рабочая директория
 WORKDIR /var/www/html
 
 # Запуск встроенного PHP-сервера (простой способ для dev)

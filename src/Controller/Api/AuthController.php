@@ -46,7 +46,7 @@ class AuthController extends AbstractController
 
         $token = bin2hex(random_bytes(32));
         $user->setApiToken($token);
-        $em->persist($user); // ← ЭТО ОБЯЗАТЕЛЬНО!
+        $em->persist($user);
         $em->flush();
 
         return $this->json(['token' => $token]);

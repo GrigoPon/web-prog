@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: ProductRepository::class)]
 class Product
@@ -70,7 +71,7 @@ class Product
         return $this;
     }
 
-    // Скрываем связь со Stock при сериализации
+
     #[Groups(['product:read'])]
     #[SerializedName('stocks')]
     public function getStocksForSerialization(): array

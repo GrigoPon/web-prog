@@ -16,9 +16,53 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 class ProductController extends AbstractController
 {
     #[Route('/api/products', methods: ['GET'])]
-    public function index(EntityManagerInterface $em, #[CurrentUser] User $user): JsonResponse
-    {
-        $products = $em->getRepository(Product::class)->findBy(['owner' => $user]);
+    public function index(
+        Request $request,
+        EntityManagerInterface $em,
+        #[CurrentUser] User $user
+    ): JsonResponse {
+        $qb = $em->createQueryBuilder();
+        $qb
+            ->select('p')
+            ->from(Product::class, 'p')
+            ->leftJoin('p.stocks', 's')
+            ->where('p.owner = :user')
+            ->groupBy('p.id') // ← обязательно!
+            ->setParameter('user', $user);
+
+        $name = $request->query->get('name');
+        $minQuantity = $request->query->get('minQuantity');
+        $maxQuantity = $request->query->get('maxQuantity');
+        $inStock = $request->query->get('inStock');
+
+        if ($name) {
+            $qb->andWhere('p.name LIKE :name')
+                ->setParameter('name', '%' . $name . '%');
+        }
+
+        // Если есть ЛЮБОЙ фильтр по остаткам — накладываем условия на stock
+        if ($inStock === 'true' || ($minQuantity !== null && is_numeric($minQuantity)) || ($maxQuantity !== null && is_numeric($maxQuantity))) {
+            // Требуем, чтобы stock существовал (INNER JOIN по факту)
+            $qb->andWhere('s.id IS NOT NULL');
+
+            if ($inStock === 'true') {
+                $qb->andWhere('s.quantity > 0');
+            }
+            if ($minQuantity !== null && is_numeric($minQuantity)) {
+                $qb->andWhere('s.quantity >= :minQuantity')
+                    ->setParameter('minQuantity', (int) $minQuantity);
+            }
+            if ($maxQuantity !== null && is_numeric($maxQuantity)) {
+                $qb->andWhere('s.quantity <= :maxQuantity')
+                    ->setParameter('maxQuantity', (int) $maxQuantity);
+            }
+        }
+        error_log('inStock: ' . var_export($inStock, true));
+        error_log('name: ' . var_export($name, true));
+        error_log('minQuantity: ' . var_export($minQuantity, true));
+        error_log('Raw query string: ' . $request->server->get('QUERY_STRING', ''));
+        error_log('All query params: ' . var_export($request->query->all(), true));
+        $products = $qb->getQuery()->getResult();
         return $this->json($products, context: ['groups' => 'product:read']);
     }
 
@@ -70,7 +114,12 @@ class ProductController extends AbstractController
             $stock->setQuantity($data['quantity']);
         }
         $em->flush();
-        return $this->json($product, 200);
+        return $this->json([
+            'id' => $product->getId(),
+            'name' => $product->getName(),
+            'description' => $product->getDescription(),
+            'quantity' => $stock ? $stock->getQuantity() : 0
+        ], 200);
     }
 
     #[Route('/api/products/{id}', methods: ['DELETE'])]

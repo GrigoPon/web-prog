@@ -8,7 +8,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class MyProductController extends AbstractController
 {
-    #[Route('/my-products', name: 'my_products')]
+    #[Route('/my-products', name: 'my-products')]
     public function index(): Response
     {
         return $this->render('my_products.html');
