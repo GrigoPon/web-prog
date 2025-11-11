@@ -24,49 +24,51 @@ class ProductController extends AbstractController
         #[CurrentUser] User $user,
         CacheInterface $cache
     ): JsonResponse {
+        $cacheKey = 'products_user_' . $user->getId() . '_' . md5($request->getQueryString());
+        $products = $cache->get($cacheKey, function (ItemInterface $item) use ($request, $em, $user) {
+            $item->expiresAfter(300);
 
-        $qb = $em->createQueryBuilder();
-        $qb
-            ->select('p')
-            ->from(Product::class, 'p')
-            ->leftJoin('p.stocks', 's')
-            ->where('p.owner = :user')
-            ->groupBy('p.id') // ← обязательно!
-            ->setParameter('user', $user);
 
-        $name = $request->query->get('name');
-        $minQuantity = $request->query->get('minQuantity');
-        $maxQuantity = $request->query->get('maxQuantity');
-        $inStock = $request->query->get('inStock');
+            $qb = $em->createQueryBuilder();
+            $qb
+                ->select('p')
+                ->from(Product::class, 'p')
+                ->leftJoin('p.stocks', 's')
+                ->where('p.owner = :user')
+                ->groupBy('p.id') // ← обязательно!
+                ->setParameter('user', $user);
 
-        if ($name) {
-            $qb->andWhere('p.name LIKE :name')
-                ->setParameter('name', '%' . $name . '%');
-        }
+            $name = $request->query->get('name');
+            $minQuantity = $request->query->get('minQuantity');
+            $maxQuantity = $request->query->get('maxQuantity');
+            $inStock = $request->query->get('inStock');
 
-        // Если есть ЛЮБОЙ фильтр по остаткам — накладываем условия на stock
-        if ($inStock === 'true' || ($minQuantity !== null && is_numeric($minQuantity)) || ($maxQuantity !== null && is_numeric($maxQuantity))) {
-            // Требуем, чтобы stock существовал (INNER JOIN по факту)
-            $qb->andWhere('s.id IS NOT NULL');
-
-            if ($inStock === 'true') {
-                $qb->andWhere('s.quantity > 0');
+            if ($name) {
+                $qb->andWhere('p.name LIKE :name')
+                    ->setParameter('name', '%' . $name . '%');
             }
-            if ($minQuantity !== null && is_numeric($minQuantity)) {
-                $qb->andWhere('s.quantity >= :minQuantity')
-                    ->setParameter('minQuantity', (int) $minQuantity);
+
+            // Если есть ЛЮБОЙ фильтр по остаткам — накладываем условия на stock
+            if ($inStock === 'true' || ($minQuantity !== null && is_numeric($minQuantity)) || ($maxQuantity !== null && is_numeric($maxQuantity))) {
+                // Требуем, чтобы stock существовал (INNER JOIN по факту)
+                $qb->andWhere('s.id IS NOT NULL');
+
+                if ($inStock === 'true') {
+                    $qb->andWhere('s.quantity > 0');
+                }
+                if ($minQuantity !== null && is_numeric($minQuantity)) {
+                    $qb->andWhere('s.quantity >= :minQuantity')
+                        ->setParameter('minQuantity', (int) $minQuantity);
+                }
+                if ($maxQuantity !== null && is_numeric($maxQuantity)) {
+                    $qb->andWhere('s.quantity <= :maxQuantity')
+                        ->setParameter('maxQuantity', (int) $maxQuantity);
+                }
             }
-            if ($maxQuantity !== null && is_numeric($maxQuantity)) {
-                $qb->andWhere('s.quantity <= :maxQuantity')
-                    ->setParameter('maxQuantity', (int) $maxQuantity);
-            }
-        }
-        error_log('inStock: ' . var_export($inStock, true));
-        error_log('name: ' . var_export($name, true));
-        error_log('minQuantity: ' . var_export($minQuantity, true));
-        error_log('Raw query string: ' . $request->server->get('QUERY_STRING', ''));
-        error_log('All query params: ' . var_export($request->query->all(), true));
-        $products = $qb->getQuery()->getResult();
+
+            return $products = $qb->getQuery()->getResult();
+        });
+
         return $this->json($products, context: ['groups' => 'product:read']);
     }
 
