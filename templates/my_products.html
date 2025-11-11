@@ -15,10 +15,16 @@
         #result { margin: 15px 0; padding: 10px; background: #f8f9fa; }
         .filters { background: #f1f3f5; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
         .edit-form { background: #e9ecef; padding: 10px; margin-top: 10px; display: none; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
-<h1>Мои товары</h1>
+<div class="header">
+    <h1>Мои товары</h1>
+    <form action="/logout" method="POST" style="display:inline;">
+        <button type="submit" style="background:#dc3545;">Выйти</button>
+    </form>
+</div>
 
 <h2>Добавить товар</h2>
 <div class="form-group">
@@ -61,20 +67,11 @@
 </div>
 
 <script>
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Вы не авторизованы! Перенаправление на главную...');
-        window.location.href = '/';
-    }
-
-    // Загружаем товары при открытии (с фильтрами из URL)
+    // Теперь не нужно проверять токен — сессия управляется cookie
     loadProductsFromUrl();
 
-    // === ФУНКЦИИ ===
     async function fetchAndRender(url) {
-        const response = await fetch(url, {
-            headers: { 'X-AUTH-TOKEN': token }
-        });
+        const response = await fetch(url); // ← без заголовков!
 
         const productsList = document.getElementById('productsList');
         if (response.ok) {
@@ -83,7 +80,7 @@
                 productsList.innerHTML = '<p>Товары не найдены.</p>';
             } else {
                 productsList.innerHTML = products.map(product => {
-                    const quantity = product.stocks?.[0]?.quantity ?? 0;
+                    const quantity = product.quantity ?? 0;
                     return `
                         <div class="product" data-id="${product.id}">
                             <h3>${product.name}</h3>
@@ -108,6 +105,10 @@
                     `;
                 }).join('');
             }
+        } else if (response.status === 401) {
+            // Если сессия истекла — редирект на главную
+            alert('Сессия истекла. Пожалуйста, войдите снова.');
+            window.location.href = '/';
         } else {
             productsList.innerHTML = '<p>Ошибка загрузки товаров.</p>';
         }
@@ -115,24 +116,7 @@
 
     function loadProductsFromUrl() {
         const urlParams = new URLSearchParams(window.location.search);
-        const name = urlParams.get('name');
-        const inStock = urlParams.get('inStock') === 'true';
-        const minQty = urlParams.get('minQuantity');
-        const maxQty = urlParams.get('maxQuantity');
-
-        // Обновляем форму
-        document.getElementById('filterName').value = name || '';
-        document.getElementById('filterInStock').checked = inStock;
-        document.getElementById('filterMinQty').value = minQty || '';
-        document.getElementById('filterMaxQty').value = maxQty || '';
-
-        // Формируем URL для API
-        const params = new URLSearchParams();
-        if (name) params.set('name', name);
-        if (inStock) params.set('inStock', 'true');
-        if (minQty !== null) params.set('minQuantity', minQty);
-        if (maxQty !== null) params.set('maxQuantity', maxQty);
-
+        const params = new URLSearchParams(urlParams.toString());
         const apiUrl = `/api/products?${params.toString()}`;
         fetchAndRender(apiUrl);
     }
@@ -151,9 +135,7 @@
 
         const newUrl = `${window.location.pathname}?${params.toString()}`;
         window.history.pushState({}, '', newUrl);
-
-        const apiUrl = `/api/products?${params.toString()}`;
-        fetchAndRender(apiUrl);
+        fetchAndRender(`/api/products?${params.toString()}`);
     }
 
     function resetFilters() {
@@ -164,7 +146,6 @@
 
         const newUrl = window.location.pathname;
         window.history.pushState({}, '', newUrl);
-
         fetchAndRender('/api/products');
     }
 
@@ -183,10 +164,7 @@
 
         const response = await fetch(`/api/products/${id}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-AUTH-TOKEN': token
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description, quantity })
         });
 
@@ -194,9 +172,11 @@
         if (response.ok) {
             result.innerHTML = '✅ Товар обновлён!';
             cancelEdit(id);
-            // Обновляем список с текущими фильтрами
             const currentUrl = new URL(window.location);
             fetchAndRender(`/api/products?${currentUrl.searchParams.toString()}`);
+        } else if (response.status === 401) {
+            alert('Сессия истекла. Пожалуйста, войдите снова.');
+            window.location.href = '/';
         } else {
             const error = await response.json();
             result.innerHTML = `❌ Ошибка: ${error.error || 'Неизвестная ошибка'}`;
@@ -210,10 +190,7 @@
 
         const response = await fetch('/api/products', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-AUTH-TOKEN': token
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description, quantity })
         });
 
@@ -223,9 +200,11 @@
             document.getElementById('productName').value = '';
             document.getElementById('productDescription').value = '';
             document.getElementById('productQuantity').value = '0';
-            // Обновляем список с текущими фильтрами
             const currentUrl = new URL(window.location);
             fetchAndRender(`/api/products?${currentUrl.searchParams.toString()}`);
+        } else if (response.status === 401) {
+            alert('Сессия истекла. Пожалуйста, войдите снова.');
+            window.location.href = '/';
         } else {
             const error = await response.json();
             result.innerHTML = `❌ Ошибка: ${error.error || 'Неизвестная ошибка'}`;
@@ -236,19 +215,20 @@
         if (!confirm('Удалить товар?')) return;
 
         const response = await fetch(`/api/products/${productId}`, {
-            method: 'DELETE',
-            headers: { 'X-AUTH-TOKEN': token }
+            method: 'DELETE'
         });
 
         if (response.ok) {
             const currentUrl = new URL(window.location);
             fetchAndRender(`/api/products?${currentUrl.searchParams.toString()}`);
+        } else if (response.status === 401) {
+            alert('Сессия истекла. Пожалуйста, войдите снова.');
+            window.location.href = '/';
         } else {
             alert('Ошибка удаления');
         }
     }
 
-    // Поддержка кнопки "Назад" в браузере
     window.addEventListener('popstate', () => {
         loadProductsFromUrl();
     });
