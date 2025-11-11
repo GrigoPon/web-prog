@@ -1,4 +1,5 @@
-<?php // src/Controller/Api/ProductController.php
+<?php
+// src/Controller/Api/ProductController.php
 
 namespace App\Controller\Api;
 
@@ -12,7 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
-use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 class ProductController extends AbstractController
@@ -22,12 +23,12 @@ class ProductController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         #[CurrentUser] User $user,
-        CacheInterface $cache
+        TagAwareCacheInterface $cache
     ): JsonResponse {
         $cacheKey = 'products_user_' . $user->getId() . '_' . md5($request->getQueryString());
         $products = $cache->get($cacheKey, function (ItemInterface $item) use ($request, $em, $user) {
-            $item->expiresAfter(300);
-
+            $item->tag('products_user_' . $user->getId()); // Применяем тег для последующей инвалидации
+            $item->expiresAfter(300); // TTL: 5 минут
 
             $qb = $em->createQueryBuilder();
             $qb
@@ -35,7 +36,7 @@ class ProductController extends AbstractController
                 ->from(Product::class, 'p')
                 ->leftJoin('p.stocks', 's')
                 ->where('p.owner = :user')
-                ->groupBy('p.id') // ← обязательно!
+                ->groupBy('p.id')
                 ->setParameter('user', $user);
 
             $name = $request->query->get('name');
@@ -48,9 +49,7 @@ class ProductController extends AbstractController
                     ->setParameter('name', '%' . $name . '%');
             }
 
-            // Если есть ЛЮБОЙ фильтр по остаткам — накладываем условия на stock
             if ($inStock === 'true' || ($minQuantity !== null && is_numeric($minQuantity)) || ($maxQuantity !== null && is_numeric($maxQuantity))) {
-                // Требуем, чтобы stock существовал (INNER JOIN по факту)
                 $qb->andWhere('s.id IS NOT NULL');
 
                 if ($inStock === 'true') {
@@ -66,15 +65,19 @@ class ProductController extends AbstractController
                 }
             }
 
-            return $products = $qb->getQuery()->getResult();
+            return $qb->getQuery()->getResult();
         });
 
         return $this->json($products, context: ['groups' => 'product:read']);
     }
 
     #[Route('/api/products', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $em, #[CurrentUser] User $user): JsonResponse
-    {
+    public function create(
+        Request $request,
+        EntityManagerInterface $em,
+        #[CurrentUser] User $user,
+        TagAwareCacheInterface $cache
+    ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
         $product = new Product();
@@ -90,6 +93,9 @@ class ProductController extends AbstractController
         $em->persist($stock);
         $em->flush();
 
+        // Инвалидируем кэш для текущего пользователя
+        $cache->invalidateTags(['products_user_' . $user->getId()]);
+
         return $this->json([
             'id' => $product->getId(),
             'name' => $product->getName(),
@@ -99,7 +105,13 @@ class ProductController extends AbstractController
     }
 
     #[Route('/api/products/{id}', methods: ['PUT'])]
-    public function update(int $id, Request $request, EntityManagerInterface $em, #[CurrentUser] User $user): JsonResponse {
+    public function update(
+        int $id,
+        Request $request,
+        EntityManagerInterface $em,
+        #[CurrentUser] User $user,
+        TagAwareCacheInterface $cache
+    ): JsonResponse {
         $product = $em->getRepository(Product::class)->find($id);
 
         if (!$product) {
@@ -114,12 +126,16 @@ class ProductController extends AbstractController
         $product->setName($data['name']);
         $product->setDescription($data['description'] ?? '');
 
-        //ОСТАТОК
         $stock = $product->getStocks()->first();
         if ($stock && isset($data['quantity'])) {
             $stock->setQuantity($data['quantity']);
         }
+
         $em->flush();
+
+        // Инвалидируем кэш
+        $cache->invalidateTags(['products_user_' . $user->getId()]);
+
         return $this->json([
             'id' => $product->getId(),
             'name' => $product->getName(),
@@ -129,9 +145,13 @@ class ProductController extends AbstractController
     }
 
     #[Route('/api/products/{id}', methods: ['DELETE'])]
-    public function delete(int $id, EntityManagerInterface $em, #[CurrentUser] User $user): JsonResponse {
+    public function delete(
+        int $id,
+        EntityManagerInterface $em,
+        #[CurrentUser] User $user,
+        TagAwareCacheInterface $cache
+    ): JsonResponse {
         $product = $em->getRepository(Product::class)->find($id);
-        $stock = $product->getStocks()->first();
 
         if (!$product) {
             return $this->json(['error' => 'product not found'], 404);
@@ -140,9 +160,17 @@ class ProductController extends AbstractController
         if ($product->getOwner() !== $user) {
             throw new AccessDeniedHttpException('You cannot delete this product');
         }
-        $em->remove($stock);
+
+        $stock = $product->getStocks()->first();
+        if ($stock) {
+            $em->remove($stock);
+        }
         $em->remove($product);
         $em->flush();
+
+        // Инвалидируем кэш
+        $cache->invalidateTags(['products_user_' . $user->getId()]);
+
         return $this->json(null, 204);
     }
 }
