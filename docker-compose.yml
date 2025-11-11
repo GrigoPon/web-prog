@@ -8,7 +8,7 @@ services:
             dockerfile: Dockerfile
         volumes:
             - .:/var/www/html
-            - /var/www/html/var
+            - var_volume:/var/www/html/var
         working_dir: /var/www/html
         depends_on:
             - database
@@ -49,3 +49,5 @@ services:
 volumes:
     db_data:
     redis_data:
+    var_volume:
+
