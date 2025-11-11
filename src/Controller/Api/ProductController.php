@@ -12,7 +12,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -22,21 +21,26 @@ class ProductController extends AbstractController
     public function index(
         Request $request,
         EntityManagerInterface $em,
-        #[CurrentUser] User $user,
         TagAwareCacheInterface $cache
     ): JsonResponse {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], 401);
+        }
+
         $cacheKey = 'products_user_' . $user->getId() . '_' . md5($request->getQueryString());
         $products = $cache->get($cacheKey, function (ItemInterface $item) use ($request, $em, $user) {
-            $item->tag('products_user_' . $user->getId()); // Применяем тег для последующей инвалидации
-            $item->expiresAfter(300); // TTL: 5 минут
+            $item->tag('products_user_' . $user->getId());
+            $item->expiresAfter(300);
 
             $qb = $em->createQueryBuilder();
             $qb
-                ->select('p')
+                ->select('p', 's') // ← ИСПРАВЛЕНО: добавлено 's'
                 ->from(Product::class, 'p')
                 ->leftJoin('p.stocks', 's')
                 ->where('p.owner = :user')
-                ->groupBy('p.id')
+                ->groupBy('p.id, s.id') // ← ИСПРАВЛЕНО: добавлено 's.id'
                 ->setParameter('user', $user);
 
             $name = $request->query->get('name');
@@ -75,9 +79,14 @@ class ProductController extends AbstractController
     public function create(
         Request $request,
         EntityManagerInterface $em,
-        #[CurrentUser] User $user,
         TagAwareCacheInterface $cache
     ): JsonResponse {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], 401);
+        }
+
         $data = json_decode($request->getContent(), true);
 
         $product = new Product();
@@ -93,7 +102,6 @@ class ProductController extends AbstractController
         $em->persist($stock);
         $em->flush();
 
-        // Инвалидируем кэш для текущего пользователя
         $cache->invalidateTags(['products_user_' . $user->getId()]);
 
         return $this->json([
@@ -109,9 +117,14 @@ class ProductController extends AbstractController
         int $id,
         Request $request,
         EntityManagerInterface $em,
-        #[CurrentUser] User $user,
         TagAwareCacheInterface $cache
     ): JsonResponse {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], 401);
+        }
+
         $product = $em->getRepository(Product::class)->find($id);
 
         if (!$product) {
@@ -133,7 +146,6 @@ class ProductController extends AbstractController
 
         $em->flush();
 
-        // Инвалидируем кэш
         $cache->invalidateTags(['products_user_' . $user->getId()]);
 
         return $this->json([
@@ -148,9 +160,14 @@ class ProductController extends AbstractController
     public function delete(
         int $id,
         EntityManagerInterface $em,
-        #[CurrentUser] User $user,
         TagAwareCacheInterface $cache
     ): JsonResponse {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], 401);
+        }
+
         $product = $em->getRepository(Product::class)->find($id);
 
         if (!$product) {
@@ -168,7 +185,6 @@ class ProductController extends AbstractController
         $em->remove($product);
         $em->flush();
 
-        // Инвалидируем кэш
         $cache->invalidateTags(['products_user_' . $user->getId()]);
 
         return $this->json(null, 204);
