@@ -12,6 +12,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class ProductController extends AbstractController
 {
@@ -19,8 +21,10 @@ class ProductController extends AbstractController
     public function index(
         Request $request,
         EntityManagerInterface $em,
-        #[CurrentUser] User $user
+        #[CurrentUser] User $user,
+        CacheInterface $cache
     ): JsonResponse {
+
         $qb = $em->createQueryBuilder();
         $qb
             ->select('p')
