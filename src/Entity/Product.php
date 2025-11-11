@@ -24,7 +24,7 @@ class Product
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[groups(['product:read'])]
+    #[Groups(['product:read'])]
     private ?string $description = null;
 
     /**
@@ -47,12 +47,12 @@ class Product
         return $this->id;
     }
 
-    public function getname(): ?string
+    public function getName(): ?string
     {
         return $this->name;
     }
 
-    public function setname(string $name): static
+    public function setName(string $name): static
     {
         $this->name = $name;
 
@@ -71,16 +71,16 @@ class Product
         return $this;
     }
 
-
+    // ✅ ДОБАВЛЕНО: простой и надёжный способ получить количество
     #[Groups(['product:read'])]
-    #[SerializedName('stocks')]
-    public function getStocksForSerialization(): array
+    public function getQuantity(): int
     {
-        return $this->stocks->map(fn(Stock $stock) => [
-            'id' => $stock->getId(),
-            'quantity' => $stock->getQuantity(),
-        ])->toArray();
+        $stock = $this->stocks->first();
+        return $stock ? $stock->getQuantity() : 0;
     }
+
+    // Опционально: можно оставить getStocksForSerialization, но он больше не нужен
+    // Если хочешь — удали его, иначе будет дублирование
 
     /**
      * @return Collection<int, Stock>
@@ -89,8 +89,6 @@ class Product
     {
         return $this->stocks;
     }
-
-
 
     public function addStock(Stock $stock): static
     {
@@ -105,7 +103,6 @@ class Product
     public function removeStock(Stock $stock): static
     {
         if ($this->stocks->removeElement($stock)) {
-            // set the owning side to null (unless already changed)
             if ($stock->getProduct() === $this) {
                 $stock->setProduct(null);
             }
