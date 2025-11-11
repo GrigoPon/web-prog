@@ -1,12 +1,15 @@
-# config/packages/session.yaml
 framework:
     session:
         handler_id: session.handler.redis
-        cookie_secure: auto
-        cookie_samesite: lax
 
 services:
+    # Создаём клиент Predis вручную
+    redis.client:
+        class: Predis\Client
+        arguments:
+            - 'redis://redis:6379'
+
     session.handler.redis:
         class: Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler
         arguments:
-            - 'redis://redis:6379'
+            - '@redis.client'  # ← передаём готовый клиент
