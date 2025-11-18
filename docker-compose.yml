@@ -9,9 +9,12 @@ services:
         volumes:
             - .:/var/www/html
             - var_volume:/var/www/html/var
+            - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
         working_dir: /var/www/html
         depends_on:
             - database
+            - redis
+            - rabbitmq
         #expose:
         #    - "9000"
         environment:
