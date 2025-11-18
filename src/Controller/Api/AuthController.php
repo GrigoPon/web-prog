@@ -11,12 +11,16 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
+use App\Message\UserRegisteredMessage;
+use Symfony\Component\Messenger\MessageBusInterface;
+
 class AuthController extends AbstractController
 {
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
     public function register(
         Request $request,
         UserPasswordHasherInterface $passwordHasher,
+        MessageBusInterface $messageBus,
         EntityManagerInterface $em
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
@@ -29,6 +33,14 @@ class AuthController extends AbstractController
 
         $em->persist($user);
         $em->flush();
+
+        // Отправляем сообщение
+        $message = new UserRegisteredMessage(
+            $user->getId(),
+            $user->getEmail(),
+            new \DateTimeImmutable()
+        );
+        $messageBus->dispatch($message);
 
         return $this->json(['id' => $user->getId(), 'email' => $user->getEmail()], 201);
     }
