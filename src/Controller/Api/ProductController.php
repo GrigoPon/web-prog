@@ -15,6 +15,11 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
+use App\Message\ProductCreatedMessage;
+use App\Message\ProductDeletedMessage;
+use App\Message\ProductUpdatedMessage;
+use Symfony\Component\Messenger\MessageBusInterface;
+
 class ProductController extends AbstractController
 {
     #[Route('/api/products', methods: ['GET'])]
@@ -79,6 +84,7 @@ class ProductController extends AbstractController
     public function create(
         Request $request,
         EntityManagerInterface $em,
+        MessageBusInterface $messageBus,
         TagAwareCacheInterface $cache
     ): JsonResponse {
         /** @var User $user */
@@ -102,7 +108,18 @@ class ProductController extends AbstractController
         $em->persist($stock);
         $em->flush();
 
+
         $cache->invalidateTags(['products_user_' . $user->getId()]);
+
+        // Отправляем сообщение
+        $message = new ProductCreatedMessage(
+            $product->getId(),
+            $product->getName(),
+            $stock->getQuantity(),
+            $user->getId(),
+            new \DateTimeImmutable()
+        );
+        $messageBus->dispatch($message);
 
         return $this->json([
             'id' => $product->getId(),
@@ -117,6 +134,7 @@ class ProductController extends AbstractController
         int $id,
         Request $request,
         EntityManagerInterface $em,
+        MessageBusInterface $messageBus,
         TagAwareCacheInterface $cache
     ): JsonResponse {
         /** @var User $user */
@@ -146,6 +164,16 @@ class ProductController extends AbstractController
 
         $em->flush();
 
+        // 🔔 Отправляем сообщение
+        $message = new ProductUpdatedMessage(
+            $product->getId(),
+            $product->getName(),
+            $stock?->getQuantity() ?? 0,
+            $user->getId(),
+            new \DateTimeImmutable()
+        );
+        $messageBus->dispatch($message);
+
         $cache->invalidateTags(['products_user_' . $user->getId()]);
 
         return $this->json([
@@ -160,6 +188,7 @@ class ProductController extends AbstractController
     public function delete(
         int $id,
         EntityManagerInterface $em,
+        MessageBusInterface $messageBus,
         TagAwareCacheInterface $cache
     ): JsonResponse {
         /** @var User $user */
@@ -178,12 +207,29 @@ class ProductController extends AbstractController
             throw new AccessDeniedHttpException('You cannot delete this product');
         }
 
+        $productId = $product->getId();
+        $name = $product->getName();
         $stock = $product->getStocks()->first();
+        $quantity = $stock?->getQuantity() ?? 0;
+
+        // 🔔 Отправляем сообщение ПЕРЕД удалением (пока данные ещё есть)
+        $message = new ProductDeletedMessage(
+            $productId,
+            $name,
+            $quantity,
+            $user->getId(),
+            new \DateTimeImmutable()
+        );
+        $messageBus->dispatch($message);
+
+
         if ($stock) {
             $em->remove($stock);
         }
         $em->remove($product);
         $em->flush();
+
+
 
         $cache->invalidateTags(['products_user_' . $user->getId()]);
 
