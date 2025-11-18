@@ -16,7 +16,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Настройка PHP
 RUN docker-php-ext-install pdo pdo_mysql mbstring
+
 RUN pecl install amqp && docker-php-ext-enable amqp
+# Установка Xdebug (для coverage)
+RUN pecl install xdebug && docker-php-ext-enable xdebug
 
 WORKDIR /var/www/html
 
