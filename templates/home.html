@@ -5,15 +5,33 @@
     <title>Учёт товаров на складе</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; }
-        .form-group { margin: 15px 0; }
-        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        .form-group { margin: 15px 0; position: relative; }
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            transition: border-color 0.2s;
+        }
+        input.invalid {
+            border-color: #dc3545; /* Красная рамка */
+            background-color: #fdf6f6;
+        }
+        input.valid {
+            border-color: #28a745; /* Зелёная рамка */
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875em;
+            margin-top: 5px;
+            display: none;
+        }
         button {
             background: #007bff; color: white; padding: 10px 20px; border: none; cursor: pointer;
         }
         button:hover { background: #0056b3; }
-        button.logout {
-            background: #dc3545;
-        }
+        button.logout { background: #dc3545; }
         .result { margin-top: 20px; padding: 10px; background: #f8f9fa; display: none; }
         .user-info {
             background: #e9f7ef; padding: 15px; border-radius: 4px; margin-bottom: 20px;
@@ -30,6 +48,34 @@
 <div id="result" class="result"></div>
 
 <script>
+    // Валидация email
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    // Валидация пароля (минимум 6 символов)
+    function isValidPassword(password) {
+        return password.length >= 6;
+    }
+
+    // Обновление статуса поля
+    function updateFieldStatus(input, isValid, messageElement, message = '') {
+        if (isValid) {
+            input.classList.remove('invalid');
+            input.classList.add('valid');
+            messageElement.style.display = 'none';
+        } else {
+            input.classList.remove('valid');
+            input.classList.add('invalid');
+            if (message) {
+                messageElement.textContent = message;
+                messageElement.style.display = 'block';
+            } else {
+                messageElement.style.display = 'none';
+            }
+        }
+    }
+
     async function checkAuth() {
         try {
             const response = await fetch('/api/session-check');
@@ -52,14 +98,16 @@
             console.warn('Не удалось проверить сессию', e);
         }
 
-        // Если не авторизован — показываем формы
+        // Форма регистрации с валидацией
         document.getElementById('app').innerHTML = `
             <h2>Регистрация</h2>
             <div class="form-group">
-                <input type="email" id="regEmail" placeholder="Email">
+                <input type="text" id="regEmail" placeholder="Email">
+                <div id="email-error" class="error-message"></div>
             </div>
             <div class="form-group">
-                <input type="password" id="regPassword" placeholder="Пароль">
+                <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)">
+                <div id="password-error" class="error-message"></div>
             </div>
             <button onclick="register()">Зарегистрироваться</button>
 
@@ -74,11 +122,55 @@
                 <button type="submit">Войти</button>
             </form>
         `;
+
+        // Подключаем валидацию полей
+        const emailInput = document.getElementById('regEmail');
+        const passwordInput = document.getElementById('regPassword');
+        const emailError = document.getElementById('email-error');
+        const passwordError = document.getElementById('password-error');
+
+        emailInput.addEventListener('input', () => {
+            const email = emailInput.value;
+            const isValid = email === '' || isValidEmail(email);
+            updateFieldStatus(emailInput, isValid, emailError, !isValid ? 'Некорректный email' : '');
+        });
+
+        passwordInput.addEventListener('input', () => {
+            const password = passwordInput.value;
+            const isValid = password === '' || isValidPassword(password);
+            updateFieldStatus(passwordInput, isValid, passwordError, !isValid ? 'Пароль должен быть не менее 6 символов' : '');
+        });
     }
 
     async function register() {
         const email = document.getElementById('regEmail').value;
         const password = document.getElementById('regPassword').value;
+        const emailError = document.getElementById('email-error');
+        const passwordError = document.getElementById('password-error');
+        const emailInput = document.getElementById('regEmail');
+        const passwordInput = document.getElementById('regPassword');
+
+        // Сброс предыдущих ошибок
+        emailInput.classList.remove('invalid', 'valid');
+        passwordInput.classList.remove('invalid', 'valid');
+        emailError.style.display = 'none';
+        passwordError.style.display = 'none';
+
+        // Валидация на фронтенде
+        let hasError = false;
+        if (!isValidEmail(email)) {
+            updateFieldStatus(emailInput, false, emailError, 'Некорректный email');
+            hasError = true;
+        }
+        if (!isValidPassword(password)) {
+            updateFieldStatus(passwordInput, false, passwordError, 'Пароль должен быть не менее 6 символов');
+            hasError = true;
+        }
+
+        if (hasError) {
+            document.getElementById('result').style.display = 'none';
+            return;
+        }
 
         const response = await fetch('/api/register', {
             method: 'POST',
@@ -89,16 +181,26 @@
         const result = document.getElementById('result');
         if (response.ok) {
             result.innerHTML = `✅ Регистрация успешна! Теперь войдите в свой аккаунт!`;
-            // Обновляем форму (показываем форму входа)
-            checkAuth();
+            checkAuth(); // Обновляем интерфейс
         } else {
             const error = await response.json();
-            result.innerHTML = `❌ Ошибка: ${error.error || 'Неизвестная ошибка'}`;
+            result.style.display = 'block';
+
+            // Обработка ошибок валидации от сервера
+            if (error.errors) {
+                if (error.errors.email) {
+                    updateFieldStatus(emailInput, false, emailError, error.errors.email);
+                }
+                if (error.errors.password) {
+                    updateFieldStatus(passwordInput, false, passwordError, error.errors.password);
+                }
+                result.style.display = 'none'; // Не показываем общий результат
+            } else {
+                result.innerHTML = `❌ Ошибка: ${error.error || 'Неизвестная ошибка'}`;
+            }
         }
-        result.style.display = 'block';
     }
 
-    // Проверяем авторизацию при загрузке страницы
     checkAuth();
 </script>
 </body>
