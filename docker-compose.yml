@@ -46,6 +46,15 @@ services:
         volumes:
             - redis_data:/data
 
+    rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+            - "5672:5672"     # AMQP
+            - "15672:15672"   # Management UI
+        environment:
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASS: guest
+
 volumes:
     db_data:
     redis_data:
