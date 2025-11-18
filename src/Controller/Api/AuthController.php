@@ -27,13 +27,12 @@ class AuthController extends AbstractController
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
+
         $user = new User();
         $user->setEmail($data['email']);
-        $user->setPassword(
-            $passwordHasher->hashPassword($user, $data['password'])
-        );
+        $user->setPassword($data['password']);
 
-        // 🔍 Валидация
+
         $errors = $validator->validate($user);
         if (count($errors) > 0) {
             $errorsArray = [];
@@ -43,16 +42,18 @@ class AuthController extends AbstractController
             return $this->json(['errors' => $errorsArray], 400);
         }
 
-        // Проверка дубликата email (после валидации)
+
         $existingUser = $em->getRepository(User::class)->findOneBy(['email' => $user->getEmail()]);
         if ($existingUser) {
             return $this->json(['error' => 'Email already exists'], 409);
         }
 
+
+        $user->setPassword($passwordHasher->hashPassword($user, $user->getPassword()));
+
         $em->persist($user);
         $em->flush();
 
-        // Отправляем сообщение
         $message = new UserRegisteredMessage(
             $user->getId(),
             $user->getEmail(),
@@ -79,8 +80,7 @@ class AuthController extends AbstractController
     #[Route('/login', name: 'api_login', methods: ['POST'])]
     public function login(): never
     {
-        // Этот метод НИКОГДА не должен быть вызван!
-        // Если сюда попали — значит, аутентификация не сработала.
+
         throw new \LogicException('form_login должен обработать запрос до этого метода.');
     }
 
