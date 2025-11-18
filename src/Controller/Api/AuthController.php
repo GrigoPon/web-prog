@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 use App\Message\UserRegisteredMessage;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -21,7 +22,8 @@ class AuthController extends AbstractController
         Request $request,
         UserPasswordHasherInterface $passwordHasher,
         MessageBusInterface $messageBus,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        ValidatorInterface $validator
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
@@ -30,6 +32,22 @@ class AuthController extends AbstractController
         $user->setPassword(
             $passwordHasher->hashPassword($user, $data['password'])
         );
+
+        // 🔍 Валидация
+        $errors = $validator->validate($user);
+        if (count($errors) > 0) {
+            $errorsArray = [];
+            foreach ($errors as $error) {
+                $errorsArray[$error->getPropertyPath()] = $error->getMessage();
+            }
+            return $this->json(['errors' => $errorsArray], 400);
+        }
+
+        // Проверка дубликата email (после валидации)
+        $existingUser = $em->getRepository(User::class)->findOneBy(['email' => $user->getEmail()]);
+        if ($existingUser) {
+            return $this->json(['error' => 'Email already exists'], 409);
+        }
 
         $em->persist($user);
         $em->flush();
