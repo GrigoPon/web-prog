@@ -2,9 +2,22 @@
 framework:
     messenger:
         transports:
-            rabbitmq_user: 'amqp://guest:guest@rabbitmq:5672/%2f?queue[user]=user.registered'
-            rabbitmq_product: 'amqp://guest:guest@rabbitmq:5672/%2f?queue[product]=product.created'
+            user_events:
+                dsn: 'amqp://guest:guest@rabbitmq:5672/%2f'
+                options:
+                    queues:
+                        user.registered: ~
+
+            product_events:
+                dsn: 'amqp://guest:guest@rabbitmq:5672/%2f'
+                options:
+                    queues:
+                        product.created: ~
+                        product.updated: ~
+                        product.deleted: ~
 
         routing:
-            'App\Message\UserRegisteredMessage': rabbitmq_user
-            'App\Message\ProductCreatedMessage': rabbitmq_product
+            'App\Message\UserRegisteredMessage': user_events
+            'App\Message\ProductCreatedMessage': product_events
+            'App\Message\ProductUpdatedMessage': product_events
+            'App\Message\ProductDeletedMessage': product_events
