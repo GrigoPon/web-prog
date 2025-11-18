@@ -1,29 +1,10 @@
+# config/packages/messenger.yaml
 framework:
     messenger:
-        failure_transport: failed
-
         transports:
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
-            async:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-                options:
-                    use_notify: true
-                    check_delayed_interval: 60000
-                retry_strategy:
-                    max_retries: 3
-                    multiplier: 2
-            failed: 'doctrine://default?queue_name=failed'
-            # sync: 'sync://'
-
-        default_bus: messenger.bus.default
-
-        buses:
-            messenger.bus.default: []
+            rabbitmq_user: 'amqp://guest:guest@rabbitmq:5672/%2f?queue[user]=user.registered'
+            rabbitmq_product: 'amqp://guest:guest@rabbitmq:5672/%2f?queue[product]=product.created'
 
         routing:
-            Symfony\Component\Mailer\Messenger\SendEmailMessage: async
-            Symfony\Component\Notifier\Message\ChatMessage: async
-            Symfony\Component\Notifier\Message\SmsMessage: async
-
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+            'App\Message\UserRegisteredMessage': rabbitmq_user
+            'App\Message\ProductCreatedMessage': rabbitmq_product
