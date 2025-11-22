@@ -71,7 +71,7 @@ class Product
         return $this;
     }
 
-    // ✅ ДОБАВЛЕНО: простой и надёжный способ получить количество
+
     #[Groups(['product:read'])]
     public function getQuantity(): int
     {
@@ -79,8 +79,6 @@ class Product
         return $stock ? $stock->getQuantity() : 0;
     }
 
-    // Опционально: можно оставить getStocksForSerialization, но он больше не нужен
-    // Если хочешь — удали его, иначе будет дублирование
 
     /**
      * @return Collection<int, Stock>

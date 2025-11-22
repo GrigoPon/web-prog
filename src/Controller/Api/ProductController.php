@@ -212,7 +212,7 @@ class ProductController extends AbstractController
         $stock = $product->getStocks()->first();
         $quantity = $stock?->getQuantity() ?? 0;
 
-        // 🔔 Отправляем сообщение ПЕРЕД удалением (пока данные ещё есть)
+        // Отправляем сообщение ПЕРЕД удалением (пока данные ещё есть)
         $message = new ProductDeletedMessage(
             $productId,
             $name,
