@@ -1,0 +1,57 @@
+name: Run Tests and Check Coverage
+
+on:
+    push:
+        branches: [ main ]
+    pull_request:
+        branches: [ main ]
+
+jobs:
+    tests:
+        runs-on: ubuntu-22.04
+
+        # Увеличим ресурсы (RabbitMQ + MySQL могут требовать больше памяти)
+        services:
+        # Нам не нужны отдельные сервисы — всё будет в docker-compose
+        # Это просто заглушка, чтобы workflow работал
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Compose
+              run: |
+                  # Удаляю version из docker-compose.yml (чтобы не было warning)
+                  sed -i '/^version:/d' docker-compose.yml
+
+            - name: Start services with Docker Compose
+              run: |
+                  docker-compose up -d
+                  # Ждем, пока все сервисы запустятся
+                  sleep 20
+
+            - name: Install Composer dependencies
+              run: |
+                  docker-compose exec -T php composer install --prefer-dist --no-progress --no-suggest
+
+            - name: Create and migrate test database
+              run: |
+                  # Подключаемся к MySQL и создаём app_test
+                  docker-compose exec -T database mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS app_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON app_test.* TO 'app'@'%'; FLUSH PRIVILEGES;"
+
+                  # Миграции для тестовой БД
+                  docker-compose exec -T php php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+            - name: Run tests with coverage
+              run: |
+                  docker-compose exec -T php php bin/phpunit --coverage-clover=coverage.xml
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  file: ./coverage.xml
+                  fail_ci_if_coverage_less_than: 60
+
+            - name: Shutdown services
+              if: always()
+              run: docker-compose down -v
