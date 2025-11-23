@@ -22,8 +22,9 @@ final class Version20251122172530 extends AbstractMigration
         // this up() migration is auto-generated, please modify it to your needs
         // Удаляем таблицу, если она уже есть (для идемпотентности)
         $this->addSql('DROP TABLE IF EXISTS chto');
-        $this->addSql('DROP TABLE IF EXISTS product');
         $this->addSql('DROP TABLE IF EXISTS stock');
+        $this->addSql('DROP TABLE IF EXISTS product');
+
         $this->addSql('DROP TABLE IF EXISTS user');
         $this->addSql('CREATE TABLE chto (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB');        $this->addSql('CREATE TABLE product (id INT AUTO_INCREMENT NOT NULL, owner_id INT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, INDEX IDX_D34A04AD7E3C61F9 (owner_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
         $this->addSql('CREATE TABLE stock (id INT AUTO_INCREMENT NOT NULL, product_id INT NOT NULL, quantity INT NOT NULL, INDEX IDX_4B3656604584665A (product_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
