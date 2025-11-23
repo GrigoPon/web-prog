@@ -9,43 +9,38 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ProductControllerTest extends WebTestCase
 {
-    private const TEST_EMAIL = 'product_test@example.com';
-
-    // Выполняется ПОСЛЕ КАЖДОГО теста
-    protected function tearDown(): void
+    private function generateTestEmail(): string
     {
-        $client = static::createClient();
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
-        $user = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
-        if ($user) {
-            $em->remove($user);
-            $em->flush();
-        }
+        return 'test_' . uniqid() . '@example.com';
     }
 
     public function testCreateAndListProduct(): void
     {
         $client = static::createClient();
+        $email = $this->generateTestEmail();
 
         // Создаём пользователя
         $em = $client->getContainer()->get(EntityManagerInterface::class);
         $passwordHasher = $client->getContainer()->get('security.password_hasher');
         $user = new User();
-        $user->setEmail(self::TEST_EMAIL);
+        $user->setEmail($email);
         $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
         $em->persist($user);
         $em->flush();
 
         // Логинимся
         $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
+            'email' => $email,
             'password' => 'password123',
         ]);
         $this->assertTrue($client->getResponse()->isRedirect());
 
-        // Дальнейшие действия...
-        $client->request('POST', '/api/products', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode(['name' => 'Test', 'quantity' => 10]));
+        // Создаём товар
+        $client->request('POST', '/api/products', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['name' => 'Test', 'quantity' => 10]));
         $this->assertResponseStatusCodeSame(201);
+
         $client->request('GET', '/api/products');
         $this->assertResponseIsSuccessful();
         $this->assertStringContainsString('Test', $client->getResponse()->getContent());
@@ -54,46 +49,58 @@ class ProductControllerTest extends WebTestCase
     public function testUpdateProduct(): void
     {
         $client = static::createClient();
+        $email = $this->generateTestEmail();
+
         $em = $client->getContainer()->get(EntityManagerInterface::class);
         $passwordHasher = $client->getContainer()->get('security.password_hasher');
         $user = new User();
-        $user->setEmail(self::TEST_EMAIL);
+        $user->setEmail($email);
         $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
         $em->persist($user);
         $em->flush();
 
         $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
+            'email' => $email,
             'password' => 'password123',
         ]);
         $this->assertTrue($client->getResponse()->isRedirect());
 
-        $client->request('POST', '/api/products', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode(['name' => 'Test', 'quantity' => 5]));
+        // Создаём и обновляем
+        $client->request('POST', '/api/products', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['name' => 'Update', 'quantity' => 5]));
+
         $data = json_decode($client->getResponse()->getContent(), true);
         $id = $data['id'];
 
-        $client->request('PUT', "/api/products/$id", [], [], ['CONTENT_TYPE' => 'application/json'], json_encode(['name' => 'Updated', 'quantity' => 10]));
+        $client->request('PUT', "/api/products/$id", [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['name' => 'Updated', 'quantity' => 10]));
         $this->assertResponseStatusCodeSame(200);
     }
 
     public function testDeleteProduct(): void
     {
         $client = static::createClient();
+        $email = $this->generateTestEmail();
+
         $em = $client->getContainer()->get(EntityManagerInterface::class);
         $passwordHasher = $client->getContainer()->get('security.password_hasher');
         $user = new User();
-        $user->setEmail(self::TEST_EMAIL);
+        $user->setEmail($email);
         $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
         $em->persist($user);
         $em->flush();
 
         $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
+            'email' => $email,
             'password' => 'password123',
         ]);
         $this->assertTrue($client->getResponse()->isRedirect());
 
-        $client->request('POST', '/api/products', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode(['name' => 'ToDelete', 'quantity' => 1]));
+        $client->request('POST', '/api/products', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['name' => 'ToDelete', 'quantity' => 1]));
         $data = json_decode($client->getResponse()->getContent(), true);
         $id = $data['id'];
 
