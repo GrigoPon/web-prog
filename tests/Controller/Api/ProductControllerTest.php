@@ -12,8 +12,9 @@ class ProductControllerTest extends WebTestCase
     private function createAuthenticatedClient(): \Symfony\Bundle\FrameworkBundle\KernelBrowser
     {
         $client = static::createClient();
-        $container = static::getContainer(); // ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
 
+        // Создаём пользователя
+        $container = static::getContainer();
         $em = $container->get('doctrine')->getManager();
         $passwordHasher = $container->get('security.password_hasher');
 
@@ -24,16 +25,9 @@ class ProductControllerTest extends WebTestCase
         $em->persist($user);
         $em->flush();
 
-        // Получаем сессию из контейнера
-        $session = $container->get('session');
-        $firewallName = 'main';
-        $token = new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken($user, $firewallName, $user->getRoles());
-        $session->set('_security_' . $firewallName, serialize($token));
-        $session->save();
-
-        // Устанавливаем куку
-        $cookie = new \Symfony\Component\BrowserKit\Cookie($session->getName(), $session->getId());
-        $client->getCookieJar()->set($cookie);
+        // Устанавливаем токен в security.token_storage
+        $token = new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken($user, 'main', $user->getRoles());
+        $container->get('security.token_storage')->setToken($token);
 
         return $client;
     }
