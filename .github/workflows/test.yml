@@ -67,10 +67,12 @@ jobs:
                     DATABASE_URL: "mysql://app:app@127.0.0.1:3306/app_test?serverVersion=8"
                 run: php bin/console doctrine:migrations:migrate --no-interaction
 
-            - name: Run tests with coverage
-              env:
-                  APP_ENV: test
-              run: php bin/phpunit --coverage-clover=coverage.xml
+            -   name: Run tests with coverage
+                env:
+                    APP_ENV: test
+                    DATABASE_URL: "mysql://app:app@127.0.0.1:3306/app_test?serverVersion=8"
+                    MESSENGER_TRANSPORT_DSN: "amqp://guest:guest@rabbitmq:5672/%2f"
+                run: php bin/phpunit --coverage-clover=coverage.xml
 
             - name: Check code coverage ≥ 60%
               uses: codecov/codecov-action@v4
