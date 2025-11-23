@@ -41,8 +41,8 @@ class ProductControllerTest extends WebTestCase
 
         // Логинимся
         $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
-            'password' => 'password123',
+            '_username' => self::TEST_EMAIL,
+            '_password' => 'password123',
         ]);
         $this->assertTrue($client->getResponse()->isRedirect());
 
@@ -74,8 +74,8 @@ class ProductControllerTest extends WebTestCase
         }
 
         $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
-            'password' => 'password123',
+            '_username' => self::TEST_EMAIL,
+            '_password' => 'password123',
         ]);
         $this->assertTrue($client->getResponse()->isRedirect());
 
@@ -111,8 +111,8 @@ class ProductControllerTest extends WebTestCase
         }
 
         $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
-            'password' => 'password123',
+            '_username' => self::TEST_EMAIL,
+            '_password' => 'password123',
         ]);
         $this->assertTrue($client->getResponse()->isRedirect());
 
