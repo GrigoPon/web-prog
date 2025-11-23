@@ -13,7 +13,6 @@ class ProductControllerTest extends WebTestCase
     {
         $client = static::createClient();
 
-        // Создаём пользователя
         $container = static::getContainer();
         $em = $container->get('doctrine')->getManager();
         $passwordHasher = $container->get('security.password_hasher');
@@ -25,9 +24,8 @@ class ProductControllerTest extends WebTestCase
         $em->persist($user);
         $em->flush();
 
-        // Устанавливаем токен в security.token_storage
-        $token = new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken($user, 'main', $user->getRoles());
-        $container->get('security.token_storage')->setToken($token);
+        // использовать loginUser()
+        $client->loginUser($user);
 
         return $client;
     }
