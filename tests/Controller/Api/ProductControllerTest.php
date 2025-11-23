@@ -34,16 +34,16 @@ class ProductControllerTest extends WebTestCase
     }
 
     // Удаляем пользователя после всех тестов
-    public static function tearDownAfterClass(): void
-    {
-        $client = static::createClient();
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
-        $user = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
-        if ($user) {
-            $em->remove($user);
-            $em->flush();
-        }
-    }
+//    public static function tearDownAfterClass(): void
+//    {
+//        $client = static::createClient();
+//        $em = $client->getContainer()->get(EntityManagerInterface::class);
+//        $user = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
+//        if ($user) {
+//            $em->remove($user);
+//            $em->flush();
+//        }
+//    }
 
     // Логинимся в каждом тесте (но пользователь уже создан)
     private function loginClient($client): void
