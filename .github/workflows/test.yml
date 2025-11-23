@@ -50,6 +50,7 @@ jobs:
                     echo 'APP_ENV=test' > .env
                     echo 'APP_SECRET=abc123def456' >> .env
                     echo 'DATABASE_URL="mysql://app:app@127.0.0.1:3306/app_test?serverVersion=8"' >> .env
+                    echo 'DEFAULT_URI=http://localhost' >> .env
 
             - name: Install dependencies
               run: composer install --prefer-dist --no-progress --no-suggest
