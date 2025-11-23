@@ -11,7 +11,30 @@ class ProductControllerTest extends WebTestCase
 {
     private const TEST_EMAIL = 'product_test@example.com';
 
-    protected function tearDown(): void
+    // Создаём пользователя ОДИН РАЗ перед всеми тестами
+    public static function setUpBeforeClass(): void
+    {
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $passwordHasher = $client->getContainer()->get('security.password_hasher');
+
+        // Удаляем, если существует
+        $existing = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
+        if ($existing) {
+            $em->remove($existing);
+            $em->flush();
+        }
+
+        // Создаём нового
+        $user = new User();
+        $user->setEmail(self::TEST_EMAIL);
+        $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
+        $em->persist($user);
+        $em->flush();
+    }
+
+    // Удаляем пользователя после всех тестов
+    public static function tearDownAfterClass(): void
     {
         $client = static::createClient();
         $em = $client->getContainer()->get(EntityManagerInterface::class);
@@ -22,23 +45,25 @@ class ProductControllerTest extends WebTestCase
         }
     }
 
+    // Логинимся в каждом тесте (но пользователь уже создан)
+    private function loginClient($client): void
+    {
+        $client->request('POST', '/login', [
+            'email' => self::TEST_EMAIL,
+            'password' => 'password123',
+        ]);
+        $this->assertTrue($client->getResponse()->isRedirect());
+    }
+
     public function testCreateAndListProduct(): void
     {
         $client = static::createClient();
-
-        // Создаём пользователя
-        $this->createTestUser($client);
-
-        // Логинимся и сохраняем куки
-        $this->loginAndSetCookie($client);
+        $this->loginClient($client);
 
         // Создаём товар
         $client->request('POST', '/api/products', [], [], [
             'CONTENT_TYPE' => 'application/json',
-        ], json_encode([
-            'name' => 'Test Product',
-            'quantity' => 10,
-        ]));
+        ], json_encode(['name' => 'Test Product', 'quantity' => 10]));
 
         $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $data = json_decode($client->getResponse()->getContent(), true);
@@ -54,16 +79,12 @@ class ProductControllerTest extends WebTestCase
     public function testUpdateProduct(): void
     {
         $client = static::createClient();
-        $this->createTestUser($client);
-        $this->loginAndSetCookie($client);
+        $this->loginClient($client);
 
         // Создаём товар
         $client->request('POST', '/api/products', [], [], [
             'CONTENT_TYPE' => 'application/json',
-        ], json_encode([
-            'name' => 'Update Test',
-            'quantity' => 5,
-        ]));
+        ], json_encode(['name' => 'Update Test', 'quantity' => 5]));
 
         $data = json_decode($client->getResponse()->getContent(), true);
         $productId = $data['id'];
@@ -71,10 +92,7 @@ class ProductControllerTest extends WebTestCase
         // Обновляем
         $client->request('PUT', "/api/products/$productId", [], [], [
             'CONTENT_TYPE' => 'application/json',
-        ], json_encode([
-            'name' => 'Updated Product',
-            'quantity' => 20,
-        ]));
+        ], json_encode(['name' => 'Updated Product', 'quantity' => 20]));
 
         $this->assertResponseStatusCodeSame(Response::HTTP_OK);
         $updated = json_decode($client->getResponse()->getContent(), true);
@@ -85,16 +103,12 @@ class ProductControllerTest extends WebTestCase
     public function testDeleteProduct(): void
     {
         $client = static::createClient();
-        $this->createTestUser($client);
-        $this->loginAndSetCookie($client);
+        $this->loginClient($client);
 
         // Создаём товар
         $client->request('POST', '/api/products', [], [], [
             'CONTENT_TYPE' => 'application/json',
-        ], json_encode([
-            'name' => 'Delete Test',
-            'quantity' => 1,
-        ]));
+        ], json_encode(['name' => 'Delete Test', 'quantity' => 1]));
 
         $data = json_decode($client->getResponse()->getContent(), true);
         $productId = $data['id'];
@@ -107,26 +121,5 @@ class ProductControllerTest extends WebTestCase
         $client->request('GET', '/api/products');
         $response = $client->getResponse()->getContent();
         $this->assertStringNotContainsString('Delete Test', $response);
-    }
-
-    private function createTestUser($client): void
-    {
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
-        $passwordHasher = $client->getContainer()->get('security.password_hasher');
-
-        $user = new User();
-        $user->setEmail(self::TEST_EMAIL);
-        $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
-        $em->persist($user);
-        $em->flush();
-    }
-
-    private function loginAndSetCookie($client): void
-    {
-        $client->request('POST', '/login', [
-            'email' => self::TEST_EMAIL,
-            'password' => 'password123',
-        ]);
-        $this->assertTrue($client->getResponse()->isRedirect());
     }
 }
