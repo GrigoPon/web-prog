@@ -11,39 +11,39 @@ class ProductControllerTest extends WebTestCase
 {
     private const TEST_EMAIL = 'product_test@example.com';
 
-    // Создаём пользователя ОДИН РАЗ перед всеми тестами
-    public static function setUpBeforeClass(): void
-    {
-        $client = static::createClient();
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
-        $passwordHasher = $client->getContainer()->get('security.password_hasher');
-
-        // Удаляем, если существует
-        $existing = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
-        if ($existing) {
-            $em->remove($existing);
-            $em->flush();
-        }
-
-        // Создаём нового
-        $user = new User();
-        $user->setEmail(self::TEST_EMAIL);
-        $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
-        $em->persist($user);
-        $em->flush();
-    }
-
-    // Удаляем пользователя после всех тестов
-//    public static function tearDownAfterClass(): void
+//    // Создаём пользователя ОДИН РАЗ перед всеми тестами
+//    public static function setUpBeforeClass(): void
 //    {
 //        $client = static::createClient();
 //        $em = $client->getContainer()->get(EntityManagerInterface::class);
-//        $user = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
-//        if ($user) {
-//            $em->remove($user);
+//        $passwordHasher = $client->getContainer()->get('security.password_hasher');
+//
+//        // Удаляем, если существует
+//        $existing = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
+//        if ($existing) {
+//            $em->remove($existing);
 //            $em->flush();
 //        }
+//
+//        // Создаём нового
+//        $user = new User();
+//        $user->setEmail(self::TEST_EMAIL);
+//        $user->setPassword($passwordHasher->hashPassword($user, 'password123'));
+//        $em->persist($user);
+//        $em->flush();
 //    }
+
+    // Удаляем пользователя после всех тестов
+    public static function tearDownAfterClass(): void
+    {
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $user = $em->getRepository(User::class)->findOneBy(['email' => self::TEST_EMAIL]);
+        if ($user) {
+            $em->remove($user);
+            $em->flush();
+        }
+    }
 
     // Логинимся в каждом тесте (но пользователь уже создан)
     private function loginClient($client): void
