@@ -2,7 +2,7 @@
 framework:
     messenger:
         transports:
-            async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            # async: '%env(MESSENGER_TRANSPORT_DSN)%'
             user_events:
                 dsn: 'amqp://guest:guest@rabbitmq:5672/%2f'
                 options:
