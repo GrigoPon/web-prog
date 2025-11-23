@@ -22,6 +22,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 class ProductController extends AbstractController
 {
+
     #[Route('/api/products', methods: ['GET'])]
     public function index(
         Request $request,
