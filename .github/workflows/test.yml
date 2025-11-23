@@ -15,7 +15,7 @@ jobs:
                 image: mysql:8.0
                 env:
                     MYSQL_ROOT_PASSWORD: root
-                    MYSQL_DATABASE: app_test
+                    MYSQL_DATABASE: app_test          # ← именно так
                     MYSQL_USER: app
                     MYSQL_PASSWORD: app
                 ports:
@@ -49,20 +49,11 @@ jobs:
             - name: Install dependencies
               run: composer install --prefer-dist --no-progress --no-suggest
 
-            - name: Create test database
-              run: |
-                  mysql -h 127.0.0.1 -u app -papp -e "CREATE DATABASE IF NOT EXISTS app_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
             - name: Run migrations for test env
-              run: |
-                  # Устанавливаем DATABASE_URL через env
-                  export DATABASE_URL="mysql://app:app@127.0.0.1:3306/app_test?serverVersion=8"
-                  php bin/console doctrine:migrations:migrate --env=test --no-interaction
+              run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
             - name: Run tests with coverage
-              run: |
-                  export DATABASE_URL="mysql://app:app@127.0.0.1:3306/app_test?serverVersion=8"
-                  php bin/phpunit --coverage-clover=coverage.xml
+              run: php bin/phpunit --coverage-clover=coverage.xml
 
             - name: Check code coverage ≥ 60%
               uses: codecov/codecov-action@v4
