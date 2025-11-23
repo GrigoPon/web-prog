@@ -49,6 +49,11 @@ jobs:
             - name: Install dependencies
               run: composer install --prefer-dist --no-progress --no-suggest
 
+            -   name: Recreate test database
+                run: |
+                    mysql -u root -proot -e "DROP DATABASE IF EXISTS app_test;"
+                    mysql -u root -proot -e "CREATE DATABASE app_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
             - name: Run migrations for test env
               run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
