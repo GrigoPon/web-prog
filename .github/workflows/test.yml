@@ -26,33 +26,15 @@ jobs:
                 ports:
                     - 6379:6379
 
-            rabbitmq:
-                image: rabbitmq:3-management
-                ports:
-                    - 5672:5672
-                env:
-                    RABBITMQ_DEFAULT_USER: guest
-                    RABBITMQ_DEFAULT_PASS: guest
-                    RABBITMQ_NODE_IP_ADDRESS: "0.0.0.0"  # ← ОБЯЗАТЕЛЬНО
-
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-
-            - name: Wait for RabbitMQ to be ready
-              run: |
-                  timeout 60s bash -c '
-                    until nc -z 127.0.0.1 5672; do
-                      echo "Waiting for RabbitMQ...";
-                      sleep 2;
-                    done
-                  '
 
             - name: Set up PHP
               uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.3'
-                  extensions: pdo_mysql, mbstring, zip, xdebug, amqp
+                  extensions: pdo_mysql, mbstring, zip, xdebug
                   tools: composer
 
             - name: Create .env file
@@ -61,7 +43,6 @@ jobs:
                   echo 'APP_SECRET=abc123def456' >> .env
                   echo 'DATABASE_URL="mysql://app:app@127.0.0.1:3306/app_test?serverVersion=8"' >> .env
                   echo 'DEFAULT_URI=http://localhost' >> .env
-                  echo 'MESSENGER_TRANSPORT_DSN=amqp://guest:guest@127.0.0.1:5672/%2f' >> .env
 
             - name: Install dependencies
               run: composer install --prefer-dist --no-progress --no-suggest
