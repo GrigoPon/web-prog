@@ -14,10 +14,59 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 use App\Message\UserRegisteredMessage;
 use Symfony\Component\Messenger\MessageBusInterface;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: "Auth", description: "Авторизация и регистрация")]
 class AuthController extends AbstractController
 {
     #[Route('/api/register', name: 'api_register', methods: ['POST'])]
+    #[OA\Post(
+        summary: "Регистрация нового пользователя",
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["email", "password"],
+                properties: [
+                    new OA\Property(property: "email", type: "string", format: "email", example: "user@example.com"),
+                    new OA\Property(property: "password", type: "string", example: "123456"),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Успешная регистрация",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "id", type: "integer", example: 1),
+                        new OA\Property(property: "email", type: "string", example: "user@example.com"),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Ошибка валидации (некорректный email или короткий пароль)",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(
+                            property: "errors",
+                            type: "object",
+                            additionalProperties: new OA\AdditionalProperties(type: "string")
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: "Email уже существует",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "error", type: "string", example: "Email already exists")
+                    ]
+                )
+            )
+        ]
+    )]
     public function register(
         Request $request,
         UserPasswordHasherInterface $passwordHasher,
@@ -65,6 +114,22 @@ class AuthController extends AbstractController
     }
 
     #[Route('/api/session-check', name: 'api_session_check', methods: ['GET'])]
+    #[OA\Get(
+        summary: "Проверить, авторизован ли пользователь",
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Статус сессии",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "logged_in", type: "boolean", example: true),
+                        new OA\Property(property: "email", type: "string", example: "user@example.com"),
+                    ],
+                    required: ["logged_in"]
+                )
+            )
+        ]
+    )]
     public function sessionCheck(): JsonResponse
     {
         $user = $this->getUser();

@@ -19,11 +19,34 @@ use App\Message\ProductCreatedMessage;
 use App\Message\ProductDeletedMessage;
 use App\Message\ProductUpdatedMessage;
 use Symfony\Component\Messenger\MessageBusInterface;
+use OpenApi\Attributes as OA;
 
+
+#[OA\Tag(name: "Products", description: "Управление товарами на складе")]
 class ProductController extends AbstractController
 {
 
     #[Route('/api/products', methods: ['GET'])]
+    #[OA\Get(
+        summary: "Получить список товаров",
+        parameters: [
+            new OA\Parameter(name: "name", in: "query", schema: new OA\Schema(type: "string"), description: "Фильтр по названию (частичное совпадение)"),
+            new OA\Parameter(name: "minQuantity", in: "query", schema: new OA\Schema(type: "integer"), description: "Минимальное количество"),
+            new OA\Parameter(name: "maxQuantity", in: "query", schema: new OA\Schema(type: "integer"), description: "Максимальное количество"),
+            new OA\Parameter(name: "inStock", in: "query", schema: new OA\Schema(type: "boolean"), description: "Только товары в наличии (quantity > 0)"),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Список товаров",
+                content: new OA\JsonContent(
+                    type: "array",
+                    items: new OA\Items(ref: "#/components/schemas/Product")
+                )
+            ),
+            new OA\Response(response: 401, description: "Неавторизован")
+        ]
+    )]
     public function index(
         Request $request,
         EntityManagerInterface $em,
@@ -82,6 +105,28 @@ class ProductController extends AbstractController
     }
 
     #[Route('/api/products', methods: ['POST'])]
+    #[OA\Post(
+        summary: "Создать новый товар",
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["name", "quantity"],
+                properties: [
+                    new OA\Property(property: "name", type: "string", example: "Ноутбук"),
+                    new OA\Property(property: "description", type: "string", example: "Мощный игровой ноутбук"),
+                    new OA\Property(property: "quantity", type: "integer", example: 10),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Товар создан",
+                content: new OA\JsonContent(ref: "#/components/schemas/Product")
+            ),
+            new OA\Response(response: 401, description: "Неавторизован")
+        ]
+    )]
     public function create(
         Request $request,
         EntityManagerInterface $em,
@@ -131,6 +176,32 @@ class ProductController extends AbstractController
     }
 
     #[Route('/api/products/{id}', methods: ['PUT'])]
+    #[OA\Put(
+        summary: "Обновить товар",
+        parameters: [
+            new OA\Parameter(name: "id", in: "path", required: true, schema: new OA\Schema(type: "integer"))
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["name"],
+                properties: [
+                    new OA\Property(property: "name", type: "string", example: "Обновлённый ноутбук"),
+                    new OA\Property(property: "description", type: "string", example: "Обновлённое описание"),
+                    new OA\Property(property: "quantity", type: "integer", example: 5),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Товар обновлён",
+                content: new OA\JsonContent(ref: "#/components/schemas/Product")
+            ),
+            new OA\Response(response: 401, description: "Неавторизован"),
+            new OA\Response(response: 404, description: "Товар не найден")
+        ]
+    )]
     public function update(
         int $id,
         Request $request,
@@ -186,6 +257,17 @@ class ProductController extends AbstractController
     }
 
     #[Route('/api/products/{id}', methods: ['DELETE'])]
+    #[OA\Delete(
+        summary: "Удалить товар",
+        parameters: [
+            new OA\Parameter(name: "id", in: "path", required: true, schema: new OA\Schema(type: "integer"))
+        ],
+        responses: [
+            new OA\Response(response: 204, description: "Товар удалён"),
+            new OA\Response(response: 401, description: "Неавторизован"),
+            new OA\Response(response: 404, description: "Товар не найден")
+        ]
+    )]
     public function delete(
         int $id,
         EntityManagerInterface $em,
